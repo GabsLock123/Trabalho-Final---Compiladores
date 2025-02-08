@@ -48,10 +48,6 @@ int factorial(int n) {
         return n * factorial(n - 1);
 }
 
-// ================================
-// Funções de controle de fluxo e loops
-// ================================
-
 // Função que usa if/else e switch/case para testar condições.
 int testConditions(int x) {
     if(x % 2 == 0)
@@ -74,7 +70,7 @@ int testConditions(int x) {
     return res;
 }
 
-// Função que testa os loops: while, do/while e for (usando "var = var + 1")
+// Função que testa os loops: while, do/while e for.
 void testLoops() {
     int i = 0;
     printf("While loop: ");
@@ -92,7 +88,7 @@ void testLoops() {
     } while(j < 3);
     printf("\n");
 
-    int k;
+    int k = 0;
     printf("For loop: ");
     for(k = 0; k < 3; k = k + 1) {
         printf("%d ", k);
@@ -101,7 +97,7 @@ void testLoops() {
 }
 
 // ================================
-// Funções de entrada e saída
+// Funções de entrada/saída
 // ================================
 
 // Função que usa scanf/printf para ler e imprimir um inteiro.
@@ -113,11 +109,11 @@ void testIO() {
 }
 
 // Função que usa gets e puts para ler e imprimir uma string.
-// (Nota: gets é inseguro, mas aqui é utilizado para fins de teste conforme o interpretador.)
+// Observe que, neste exemplo, strings são vetores de char.
 void testStringIO() {
-    string s;
-    printf("Enter a string: ");
-    gets(s);  // Utilizado para teste conforme implementação do interpretador
+    char s[100];
+    printf("Enter a string (for gets): ");
+    gets(s);
     puts(s);
 }
 
@@ -125,13 +121,16 @@ void testStringIO() {
 // main
 // ================================
 int main() {
-    int x; 
-    int y; 
+    int i;
+    int x;
+    int y;
     int r;
-    x = 10;
-    y = 20;
+    int fact;
+    int condRes;
     
     // Teste de função com retorno e com parâmetros
+    x = 10;
+    y = 20;
     r = sum(x, y);
     printf("Sum of %d and %d = %d\n", x, y, r);
     
@@ -141,13 +140,13 @@ int main() {
     // Teste de função sem retorno e sem parâmetros
     greet();
     
-    // Teste de struct: cria uma pessoa e imprime seus dados
+    // Teste de função que imprime uma struct
     struct Person p;
     p.age = 25;
     p.initial = 'J';
     printPerson(p);
     
-    // Teste de union: atribui valores e imprime-os
+    // Teste de union
     union Data d;
     d.i = 100;
     printf("Union d: i = %d\n", d.i);
@@ -155,21 +154,41 @@ int main() {
     printf("Union d: f = %f\n", d.f);
     
     // Teste de função recursiva: fatorial
-    int fact = factorial(5);
+    fact = factorial(5);
     printf("Factorial of 5 = %d\n", fact);
     
     // Teste de if/else e switch/case
-    int condRes = testConditions(2);
+    condRes = testConditions(2);
     printf("Result from testConditions(2) = %d\n", condRes);
     
     // Teste de loops
     testLoops();
     
-    // Teste de entrada/saída com scanf/printf
+    // Teste de entrada/saída numérica
     testIO();
     
-    // Teste de entrada/saída com gets/puts
+    // Teste de entrada/saída de string
     testStringIO();
-
+    
+    // ================================
+    // Teste de arrays
+    // ================================
+    
+    // Array de inteiros
+    int arr[4];
+    arr[0] = 2;
+    arr[1] = 4;
+    arr[2] = 6;
+    arr[3] = 8;
+    printf("Array arr: ");
+    for(i = 0; i < 4; i = i + 1) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    
+    // Array de char representando uma string
+    char s[20] = "Hello, world!";
+    printf("String s: %s\n", s);
+    
     return 0;
 }

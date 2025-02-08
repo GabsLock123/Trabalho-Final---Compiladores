@@ -2,12 +2,10 @@ from CVisitor import CVisitor
 from CParser import CParser
 from tabela_simbolos import TabelaSimbolos
 
-# Exceção para sinalizar um break
 class BreakException(Exception):
-    """Exceção para sinalizar um break em estruturas de controle."""
     pass
 
-# Exceção para sinalizar o retorno de uma função
+
 class ReturnException(Exception):
     def __init__(self, value):
         self.value = value
@@ -15,23 +13,30 @@ class ReturnException(Exception):
 class Interpretador(CVisitor):
     def __init__(self):
         self.tabela_simbolos = TabelaSimbolos()
-        self.funcoes = {}  # Dicionário para armazenar as definições de funções
+        self.funcoes = {}  
+
+    def visitInitializerList(self, ctx):
+        valores = []
+        for expr in ctx.expression():
+            valores.append(self.visit(expr))
+        return valores
+
+    def visitInit(self, ctx):
+        if ctx.initializerList() is not None:
+            return self.visit(ctx.initializerList())
+        elif ctx.expression() is not None:
+            return self.visit(ctx.expression())
+        else:
+            return None
 
     def visitStatement(self, ctx):
-        # Se o primeiro token do statement for "return", trata-o via visitReturnStatement.
         if ctx.getChild(0).getText() == "return":
             return self.visitReturnStatement(ctx)
-        # Caso contrário, visita os filhos normalmente.
         return self.visitChildren(ctx)
 
     def visitReturnStatement(self, ctx):
-        """
-        returnStatement : 'return' expression? ';'
-        Avalia o valor de retorno (se houver) e interrompe a execução do corpo da função.
-        """
         expr = ctx.expression()
         if expr:
-            # Se a expressão for opcional e estiver presente, verifique se ela é uma lista.
             if isinstance(expr, list):
                 value = self.visit(expr[0])
             else:
@@ -40,31 +45,18 @@ class Interpretador(CVisitor):
             value = None
         raise ReturnException(value)
 
-    # -----------------------------
-    # Função: Definição de funções
-    # -----------------------------
     def visitFunctionDef(self, ctx):
-        tipo = ctx.type_().getText()         # Ex.: "void" ou "int"
+        tipo = ctx.type_().getText()         
         nome = ctx.Identifier().getText()
         self.funcoes[nome] = ctx
-        print(f"Função definida: {nome} com tipo de retorno {tipo}")
         return None
 
-    # -----------------------------
-    # Função: Chamada de função
-    # -----------------------------
     def visitFunctionCall(self, ctx):
-        """
-        functionCall : Identifier '(' argumentList? ')'
-        Executa a chamada de uma função (suporta parâmetros e retorno).
-        """
         nome = ctx.Identifier().getText()
         if nome not in self.funcoes:
             raise Exception(f"Função '{nome}' não foi definida.")
         funcDefCtx = self.funcoes[nome]
-        print(f"Executando a função: {nome}")
-        
-        # --- Avalia os argumentos passados na chamada ---
+
         arg_values = []
         if ctx.argumentList() is not None:
             expr_list = ctx.argumentList().expression()
@@ -73,7 +65,6 @@ class Interpretador(CVisitor):
             for expr in expr_list:
                 arg_values.append(self.visit(expr))
         
-        # --- Obtém os nomes dos parâmetros definidos na função (se houver) ---
         param_names = []
         if funcDefCtx.paramList() is not None:
             id_list = funcDefCtx.paramList().Identifier()
@@ -82,17 +73,14 @@ class Interpretador(CVisitor):
             for token in id_list:
                 param_names.append(token.getText())
         
-        # Verifica se o número de argumentos coincide com o número de parâmetros
         if len(param_names) != len(arg_values):
             raise Exception(f"Função '{nome}' espera {len(param_names)} parâmetros, mas {len(arg_values)} foram passados.")
         
-        # --- Cria um novo escopo para a execução da função ---
         old_tabela = self.tabela_simbolos
         self.tabela_simbolos = TabelaSimbolos(parent=old_tabela)
         self.tabela_simbolos.structs = old_tabela.structs
         self.tabela_simbolos.unions = old_tabela.unions
         
-        # --- Insere os parâmetros na nova tabela de símbolos ---
         param_types = []
         if funcDefCtx.paramList() is not None:
             t = funcDefCtx.paramList().type_()
@@ -104,16 +92,13 @@ class Interpretador(CVisitor):
         for i, param in enumerate(param_names):
             param_type = param_types[i] if i < len(param_types) else "int"
             self.tabela_simbolos.adicionar_variavel(param, param_type, arg_values[i])
-            print(f"Parâmetro: {param} de tipo {param_type} com valor {arg_values[i]}")
-        
-        # --- Executa o corpo da função e captura o retorno ---
+
         try:
             self.visit(funcDefCtx.block())
-            ret_value = None  # Se não houver return, o valor de retorno será None.
+            ret_value = None  
         except ReturnException as re:
             ret_value = re.value
         
-        # Se a função possui tipo de retorno não void e nenhum valor foi retornado, usamos um default.
         tipo_funcao = funcDefCtx.type_().getText()
         if ret_value is None and tipo_funcao != "void":
             if tipo_funcao == "int":
@@ -123,168 +108,132 @@ class Interpretador(CVisitor):
             elif tipo_funcao == "char":
                 ret_value = '\0'
             else:
-                ret_value = None  # Para outros tipos, você pode ajustar conforme necessário
+                ret_value = None  
         
-        # --- Restaura o escopo anterior ---
         self.tabela_simbolos = old_tabela
         return ret_value
 
     def visitDirective(self, ctx):
-        """
-        Trata diretivas de pré-processamento, como #include e #define.
-        """
-        directive_type = ctx.getChild(0).getText()  # Identifica o tipo da diretiva (#include ou #define)
+        directive_type = ctx.getChild(0).getText()  
         
         if directive_type == '#include':
-            included_file = ctx.IncludeFile().getText()  # Captura o arquivo incluído
-            included_file = included_file.strip('<>"')   # Remove os delimitadores (<>, "")
-            print(f"Incluindo biblioteca: {included_file}")
-            # Aqui, você pode simular a inclusão do arquivo, carregar conteúdo ou registrar a inclusão
-            # Exemplo: self.included_files.add(included_file)
+            included_file = ctx.IncludeFile().getText()  
+            included_file = included_file.strip('<>"')   
 
         elif directive_type == '#define':
             macro_name = ctx.Identifier().getText()
             macro_value = self.visit(ctx.expression()) if ctx.expression() else None
             self.tabela_simbolos.adicionar_macro(macro_name, macro_value)
-            print(f"Macro definida -> Nome: {macro_name}, Valor: {macro_value}")
 
     def visitStructDef(self, ctx):
-        """
-        structDef: 'struct' Identifier '{' varDecl* '}' ';'
-        Armazena os campos da struct em self.tabela_simbolos.
-        """
         nome_struct = ctx.Identifier().getText()
 
-        # Dicionário local para armazenar campos: { nomeCampo: tipoCampo, ... }
         campos = {}
 
-        # Percorre cada varDecl interno
         for vd in ctx.varDecl():
-            tipo_campo = vd.type_().getText()        # ex: "int"
-            nome_campo = vd.Identifier().getText()   # ex: "idade"
+            tipo_campo = vd.type_().getText()        
+            nome_campo = vd.Identifier().getText()   
             if nome_campo in campos:
                 raise Exception(f"Campo '{nome_campo}' duplicado na struct '{nome_struct}'.")
             campos[nome_campo] = tipo_campo
 
-            # OBS: Não chamamos self.visitVarDecl(vd) porque não queremos criar
-            #      variáveis "globais"; aqui, só definimos o tipo do campo.
-
-        # Armazena a definição da struct
         self.tabela_simbolos.adicionar_struct(nome_struct, campos)
-        print(f"Struct '{nome_struct}' definida com campos: {campos}")
 
     def visitUnionDef(self, ctx):
-        """
-        unionDef: 'union' Identifier '{' varDecl* '}' ';'
-        Armazena os campos da union na tabela de símbolos.
-        """
+
         nome_union = ctx.Identifier().getText()
         campos = {}
         for vd in ctx.varDecl():
-            tipo_campo = vd.type_().getText()        # ex: "int"
-            nome_campo = vd.Identifier().getText()    # ex: "tag"
+            tipo_campo = vd.type_().getText()        
+            nome_campo = vd.Identifier().getText()    
             if nome_campo in campos:
                 raise Exception(f"Campo '{nome_campo}' duplicado na union '{nome_union}'.")
             campos[nome_campo] = tipo_campo
         self.tabela_simbolos.adicionar_union(nome_union, campos)
-        print(f"Union '{nome_union}' definida com campos: {campos}")
-
 
     def visitVarDecl(self, ctx):
-        """
-        varDecl: type Identifier arraySize? ('=' expression)? ';'
-        ...
-        """
-        tipo = ctx.type_().getText()  # ex: "structPessoa"
+        tipo = ctx.type_().getText()  
         nome = ctx.Identifier().getText()
 
-        # Verifica duplicata
         if nome in self.tabela_simbolos.variaveis:
             raise Exception(f"Variável '{nome}' já foi declarada.")
 
-        # Checa se é array (arraySize)
+        is_array = False
         tam_array = None
         if ctx.arraySize():
-            size_text = ctx.arraySize().Number().getText()
-            tam_array = int(size_text)
+            is_array = True
 
-        # Se houver expressão de inicialização
+            if ctx.arraySize().Number() is not None:
+                size_text = ctx.arraySize().Number().getText()
+                tam_array = int(size_text)
+
         valor_inicial = None
         inicializada = False
-        if ctx.expression():
-            valor_inicial = self.visit(ctx.expression())
+        if ctx.init():
+            valor_inicial = self.visit(ctx.init())
             inicializada = True
 
-        # ==============
-        # 1) Se for Array
-        if tam_array is not None:
-            # ... (código para array, se quiser)
-            # Exemplo: int v[5];
-            # Monta "tipo_base[]"
+        if is_array:
             tipo_array = tipo + "[]"
-            if valor_inicial is not None:
-                valor_convertido = self._verificar_tipo_e_converter(tipo, valor_inicial, f"{nome}[all]")
-                array_val = [valor_convertido for _ in range(tam_array)]
+
+            if tipo == "char" and isinstance(valor_inicial, str):
+                if tam_array is not None:
+                    if len(valor_inicial) > tam_array:
+                        raise Exception(f"A string fornecida para '{nome}' é maior que o tamanho do array ({tam_array}).")
+                    array_val = list(valor_inicial) + ['\0'] * (tam_array - len(valor_inicial))
+                else:
+                    tam_array = len(valor_inicial) + 1
+                    array_val = list(valor_inicial) + ['\0']
+            elif valor_inicial is not None:
+                if isinstance(valor_inicial, list):
+                    if tam_array is not None and len(valor_inicial) != tam_array:
+                        raise Exception(
+                            f"O número de elementos na inicialização de '{nome}' ({len(valor_inicial)}) "
+                            f"não corresponde ao tamanho declarado ({tam_array})."
+                        )
+                    if tam_array is None:
+                        tam_array = len(valor_inicial)
+                    array_val = []
+                    for i, elem in enumerate(valor_inicial):
+                        array_val.append(self._verificar_tipo_e_converter(tipo, elem, f"{nome}[{i}]"))
+                else:
+                    if tam_array is None:
+                        raise Exception(f"Array '{nome}' sem tamanho definido deve ser inicializado com uma lista de valores.")
+                    valor_convertido = self._verificar_tipo_e_converter(tipo, valor_inicial, f"{nome}[all]")
+                    array_val = [valor_convertido for _ in range(tam_array)]
             else:
-                array_val = [None]*tam_array
+                if tam_array is None:
+                    raise Exception(f"Array '{nome}' sem tamanho definido deve ser inicializado.")
+                array_val = [None] * tam_array
 
             self.tabela_simbolos.adicionar_variavel(nome, tipo_array, array_val)
             status = "inicializada" if inicializada else "não inicializada"
-            print(f"Array declarado -> Nome: {nome}, Tipo: {tipo_array}, Tamanho: {tam_array}, Status: {status}")
 
-        # ==============
-        # 2) Se for struct
         elif tipo.startswith("struct"):
-            # Exemplo: "structPessoa" => "Pessoa"
             nome_struct = tipo[len("struct"):].strip()
-
             definicao_struct = self.tabela_simbolos.obter_struct(nome_struct)
             if definicao_struct is None:
                 raise Exception(f"Struct '{nome_struct}' não foi definida antes de criar '{nome}'.")
-
-            # Cria o dicionário de campos, todos None
             campos_iniciais = {}
             for campo, tipo_campo in definicao_struct.items():
                 campos_iniciais[campo] = {"tipo": tipo_campo, "valor": None}
-
-            # Monta valor (independente de haver expressão ou não)
-            struct_valor = {
-                "__struct_name__": nome_struct,
-                "campos": campos_iniciais
-            }
-            # Em C, por padrão, `struct Pessoa p;` “cria” a struct.
-            # Então podemos marcar como inicializada = True.
-            inicializada = True
-
-            # Se HOUVE um valor_inicial numérico ou algo assim, normalmente ignoramos
-            # (A não ser que você queira suportar algo como `struct Pessoa p = 0;`, mas não é padrão.)
-            # Então sempre sobrescrevemos com o struct_inicial.
+            struct_valor = {"__struct_name__": nome_struct, "campos": campos_iniciais}
+            inicializada = True  
             self.tabela_simbolos.adicionar_variavel(nome, tipo, struct_valor)
-            status = "inicializada" if inicializada else "não inicializada"
-            print(f"Variável declarada -> Nome: {nome}, Tipo: {tipo}, Status: {status}")
+            status = "inicializada"
 
         elif tipo.startswith("union"):
             nome_union = tipo[len("union"):].strip()
             definicao_union = self.tabela_simbolos.obter_union(nome_union)
             if definicao_union is None:
                 raise Exception(f"Union '{nome_union}' não foi definida antes de criar '{nome}'.")
-
             campos_iniciais = {}
             for campo, tipo_campo in definicao_union.items():
                 campos_iniciais[campo] = {"tipo": tipo_campo, "valor": None}
-
-            # Cria a union com os campos e sem campo ativo (nenhum foi atribuído)
             union_val = {"__union_name__": nome_union, "active_field": None, "fields": campos_iniciais}
-
-            # Neste exemplo, não suportamos inicialização direta de union
-            if ctx.expression():
+            if ctx.init():
                 raise Exception("Inicialização de union não suportada diretamente; use a atribuição de campo (ex.: u.campo = valor).")
-            
             self.tabela_simbolos.adicionar_variavel(nome, tipo, union_val)
-            print(f"Variável declarada -> Nome: {nome}, Tipo: {tipo}, Status: não inicializada")
-
-        # ==============
-        # 3) Se for tipo primitivo normal (int, float, ...)
         else:
             valor = None
             if valor_inicial is not None:
@@ -292,16 +241,8 @@ class Interpretador(CVisitor):
                 inicializada = True
             self.tabela_simbolos.adicionar_variavel(nome, tipo, valor)
             status = "inicializada" if inicializada else "não inicializada"
-            print(f"Variável declarada -> Nome: {nome}, Tipo: {tipo}, Status: {status}")
-
 
     def _verificar_tipo_e_converter(self, tipo_variavel, valor, nome_alvo):
-        """
-        Faz a verificação de tipo (int, float, char, string, etc.) e converte se necessário.
-        'nome_alvo' é uma string descritiva para usar em mensagens de erro ou aviso.
-        Retorna o valor convertido, se for válido.
-        """
-        # Se for int
         if tipo_variavel == "int":
             if isinstance(valor, int):
                 return valor
@@ -311,28 +252,18 @@ class Interpretador(CVisitor):
             else:
                 raise Exception(f"Erro: Valor '{valor}' incompatível com o tipo INT de '{nome_alvo}'.")
 
-        # Se for float/double
         elif tipo_variavel in ["float", "double"]:
             if isinstance(valor, (int, float)):
                 return float(valor)
             else:
                 raise Exception(f"Erro: Valor '{valor}' incompatível com o tipo {tipo_variavel.upper()} de '{nome_alvo}'.")
 
-        # Se for char
         elif tipo_variavel == "char":
             if isinstance(valor, str) and len(valor) == 1:
                 return valor
             else:
                 raise Exception(f"Erro: Valor '{valor}' incompatível com o tipo CHAR de '{nome_alvo}'.")
 
-        # Se for string (novo)
-        elif tipo_variavel == "string":
-            if isinstance(valor, str):
-                return valor
-            else:
-                raise Exception(f"Erro: Valor '{valor}' incompatível com o tipo STRING de '{nome_alvo}'.")
-
-        # Demais tipos (short, long, unsigned, etc.). Simplificado aqui:
         elif tipo_variavel in ["short", "long", "unsigned", "unsigned int", "unsigned long", "long long"]:
             if isinstance(valor, int):
                 return valor
@@ -342,27 +273,18 @@ class Interpretador(CVisitor):
             else:
                 raise Exception(f"Erro: Valor '{valor}' incompatível com o tipo {tipo_variavel.upper()} de '{nome_alvo}'.")
 
-        # Caso seja struct (ex: "struct Pessoa") ou algo que não esteja contemplado acima, não convertemos
         elif tipo_variavel.startswith("struct"):
             if isinstance(valor, dict) and "campos" in valor:
                 return valor
             else:
                 raise Exception(f"Erro: Tentando atribuir valor não-struct a um struct '{nome_alvo}'.")
         else:
-            # Se nenhum dos casos foi atendido, retorna o valor sem conversão.
             return valor
 
 
     def visitAssignment(self, ctx):
-        """
-        Trata atribuições para:
-        1) variáveis simples:          Identifier = expression ;
-        2) acesso a campo (struct ou union): (Identifier ('.' Identifier)*) = expression ;
-        3) elemento de array:         Identifier '[' expression ']' = expression ;
-        """
         child_count = ctx.getChildCount()
 
-        # 1) Atribuição a elemento de array
         if (child_count >= 6 
             and ctx.getChild(1).getText() == '[' 
             and ctx.getChild(3).getText() == ']' 
@@ -390,10 +312,8 @@ class Interpretador(CVisitor):
             valor_convertido = self._verificar_tipo_e_converter(tipo_base, valor, f"{array_name}[{index_value}]")
             array_data[index_value] = valor_convertido
             self.tabela_simbolos.atualizar_variavel(array_name, array_data)
-            print(f"Array '{array_name}' na posição [{index_value}] atualizado -> Valor: {valor_convertido}")
             return
 
-        # 2) Obtém os tokens do lado esquerdo até o '='
         left_side_tokens = []
         i = 0
         while ctx.getChild(i).getText() != '=':
@@ -402,21 +322,17 @@ class Interpretador(CVisitor):
 
         valor = self.visit(ctx.expression(0))
 
-        # 3) Atribuição simples: x = expr ;
         if len(left_side_tokens) == 1:
             nome_var = left_side_tokens[0]
             variavel = self.tabela_simbolos.obter_variavel(nome_var, verificar_inicializacao=False)
             tipo_variavel = variavel["tipo"]
 
-            # Não permitimos atribuição direta a union; deve-se acessar um campo (ex.: u.campo = valor)
             if tipo_variavel.startswith("union"):
                 raise Exception("Atribuição direta de union não permitida; use a atribuição de campo (ex.: u.campo = valor).")
 
             valor_convertido = self._verificar_tipo_e_converter(tipo_variavel, valor, nome_var)
             self.tabela_simbolos.atualizar_variavel(nome_var, valor_convertido)
-            print(f"Variável '{nome_var}' atualizada -> Tipo: {tipo_variavel}, Novo Valor: {valor_convertido}")
         else:
-            # 4) Atribuição a campo (pode ser struct ou union)
             identifiers = [token for token in left_side_tokens if token != '.']
             nome_var = identifiers[0]
             variavel = self.tabela_simbolos.obter_variavel(nome_var, verificar_inicializacao=True)
@@ -435,7 +351,6 @@ class Interpretador(CVisitor):
                         tipo_campo = campos[nome_campo]["tipo"]
                         valor_convertido = self._verificar_tipo_e_converter(tipo_campo, valor, f"{nome_var}.{nome_campo}")
                         campos[nome_campo]["valor"] = valor_convertido
-                        print(f"Campo '{nome_campo}' da struct '{nome_var}' atualizado -> Tipo: {tipo_campo}, Valor: {valor_convertido}")
                     else:
                         if nome_campo not in campos:
                             raise Exception(f"O campo '{nome_campo}' não existe na struct '{struct_value['__struct_name__']}'.")
@@ -449,7 +364,6 @@ class Interpretador(CVisitor):
                 union_value = variavel["valor"]
                 if not (isinstance(union_value, dict) and "fields" in union_value and "active_field" in union_value):
                     raise Exception(f"Tentando acessar campo de algo que não é union: '{nome_var}'.")
-                # Para unions, somente permitimos acesso direto ao campo (sem cadeia)
                 if len(identifiers) != 2:
                     raise Exception("Acesso a sub-campos de union não suportado.")
                 nome_campo = identifiers[1]
@@ -460,7 +374,6 @@ class Interpretador(CVisitor):
                 valor_convertido = self._verificar_tipo_e_converter(tipo_campo, valor, f"{nome_var}.{nome_campo}")
                 fields[nome_campo]["valor"] = valor_convertido
                 union_value["active_field"] = nome_campo
-                print(f"Campo '{nome_campo}' da union '{nome_var}' atualizado -> Tipo: {tipo_campo}, Valor: {valor_convertido}")
 
             else:
                 raise Exception("Atribuição inválida: acesso a campo apenas para structs e unions.")
@@ -470,23 +383,18 @@ class Interpretador(CVisitor):
     def visitExpression(self, ctx):
         child_count = ctx.getChildCount()
 
-        # 0) Se a expressão consiste de um único filho e esse filho é uma chamada de função,
-        # delega para visitFunctionCall.
         if child_count == 1 and ctx.getChild(0).__class__.__name__ == "FunctionCallContext":
             return self.visit(ctx.getChild(0))
 
-        # 1) Se for acesso a campo: expression '.' Identifier
         if child_count == 3 and ctx.getChild(1).getText() == '.':
             left_value = self.visit(ctx.getChild(0))
             field_name = ctx.getChild(2).getText()
             if isinstance(left_value, dict):
-                # Se for struct
                 if "campos" in left_value:
                     campos = left_value["campos"]
                     if field_name not in campos:
                         raise Exception(f"O campo '{field_name}' não existe na struct '{left_value['__struct_name__']}'.")
                     return campos[field_name]["valor"]
-                # Se for union
                 elif "fields" in left_value and "active_field" in left_value:
                     if left_value["active_field"] is None:
                         raise Exception(f"Union '{left_value['__union_name__']}' não foi inicializada (nenhum campo atribuído).")
@@ -498,7 +406,6 @@ class Interpretador(CVisitor):
             else:
                 raise Exception("Operação de acesso a campo em valor não estruturado.")
 
-        # 2) Se for operação binária: (expression op expression)
         if child_count == 3:
             op = ctx.getChild(1).getText()
             if op in ['+', '-', '*', '/', '%', '&&', '||', '>', '<', '>=', '<=', '==', '!=']:
@@ -531,7 +438,6 @@ class Interpretador(CVisitor):
                 elif op == '!=':
                     return left != right
 
-        # 3) Se for acesso a array: Identifier '[' expression ']'
         if (child_count == 4 and ctx.getChild(0).getSymbol() is not None 
             and ctx.getChild(1).getText() == '[' and ctx.getChild(3).getText() == ']'):
             array_name = ctx.getChild(0).getText()
@@ -546,25 +452,20 @@ class Interpretador(CVisitor):
                 raise Exception(f"Índice {index_value} fora dos limites do array '{array_name}'.")
             return array_data[index_value]
 
-        # 4) Se for literal numérico (Number)
         if ctx.Number():
             valor = ctx.Number().getText()
             return float(valor) if '.' in valor else int(valor)
 
-        # 5) Se for literal de string (StringLiteral)
         if ctx.StringLiteral():
             s = ctx.StringLiteral().getText().strip('"')
             return bytes(s, "utf-8").decode("unicode_escape")
 
-        # 6) Se for literal de caractere (CharLiteral)
         if ctx.CharLiteral():
             return ctx.CharLiteral().getText().strip("'")
 
-        # 7) Se for expressão entre parênteses: ( expression )
         if child_count == 3 and ctx.getChild(0).getText() == '(' and ctx.getChild(2).getText() == ')':
             return self.visit(ctx.getChild(1))
 
-        # 8) Se for operador unário: ! expression ou - expression
         if child_count == 2:
             first_char = ctx.getChild(0).getText()
             if first_char == '!':
@@ -572,187 +473,108 @@ class Interpretador(CVisitor):
             elif first_char == '-':
                 return -self.visit(ctx.getChild(1))
 
-        # 9) Se for um identificador simples (caso isolado)
         if child_count == 1 and ctx.Identifier():
             return self.tabela_simbolos.obter_variavel(ctx.Identifier().getText(), verificar_inicializacao=True)["valor"]
-
-        # Caso nenhum dos casos anteriores se aplique, retorna None.
         return None
 
     def visitIfStatement(self, ctx):
-        """
-        Visita um nó if-else e avalia a condição.
-        - ctx.expression() avalia a condição do if.
-        - ctx.statement(0) é o bloco do if.
-        - ctx.statement(1) (opcional) é o bloco do else.
-        """
-        condicao = self.visit(ctx.expression())  # Avalia a condição
-        print(f"Avaliando condição do if: {condicao}")
+        condicao = self.visit(ctx.expression()) 
 
         if condicao:
-            print("Condição verdadeira, executando bloco if.")
-            # Se a condição for verdadeira, executa o bloco do if
             self.visit(ctx.statement(0))
         elif ctx.statement(1):
-            print("Condição falsa, executando bloco else.")
-            # Se existir um bloco else, executa-o
             self.visit(ctx.statement(1))
 
     def visitSwitchStatement(self, ctx):
-        """
-        Visita um nó switch-case e avalia o valor do switch.
-        - ctx.caseBlock(i) acessa cada case.
-        - ctx.defaultBlock(i) acessa o bloco default.
-        """
-        valor_switch = self.visit(ctx.expression())  # Avalia a expressão do switch
-        print(f"Avaliando switch com valor: {valor_switch}")
+        valor_switch = self.visit(ctx.expression()) 
 
-        # Flag para indicar se um case foi executado
         caso_executado = False
 
-        # Processa os blocos de casos
         for case in ctx.caseBlock():
-            case_expr = self.visit(case.caseLabel().expression())  # Avalia o valor do case
+            case_expr = self.visit(case.caseLabel().expression())  
             if valor_switch == case_expr:
-                print(f"Executando case: {case_expr}")
-                caso_executado = True  # Marca que um caso foi executado
+                caso_executado = True  
 
                 try:
-                    # Executa as instruções no case
                     for stmt in case.statement():
                         self.visit(stmt)
                 except BreakException:
-                    print("Encontrado break, interrompendo o switch.")
-                    return  # Interrompe o switch sem levantar exceção global
+                    return  
 
-        # Processa o bloco default apenas se nenhum caso foi executado
         if not caso_executado:
             for default in ctx.defaultBlock():
-                print("Executando bloco default")
                 for stmt in default.statement():
                     self.visit(stmt)
 
     def visitWhileStatement(self, ctx):
-        """
-        Visita e executa um loop while.
-        - ctx.expression() avalia a condição do while.
-        - ctx.statement() executa o corpo do loop.
-        """
-        while True:
-            condicao = self.visit(ctx.expression())  # Avalia a condição do while
-            print(f"Avaliando condição do while: {condicao}")
 
-            if not condicao:  # Se a condição for falsa, sai do loop
+        while True:
+            condicao = self.visit(ctx.expression())  
+
+            if not condicao:  
                 break
 
-            # Executa o corpo do loop
             try:
                 self.visit(ctx.statement())
             except BreakException:
-                print("Encontrado break, interrompendo o while.")
                 break
 
     def visitBreakStatement(self, ctx):
-        """Interrompe a execução de um loop ou switch."""
         raise BreakException()
 
     def visitDoWhileStatement(self, ctx):
-        """
-        Visita e executa um loop do-while.
-        - ctx.statement() é o bloco de instruções.
-        - ctx.expression() é a condição do loop.
-        """
         while True:
-            # Executa o bloco do loop
             try:
                 self.visit(ctx.statement())
             except BreakException:
-                print("Encontrado break, interrompendo o do-while.")
                 break
 
-            # Avalia a condição após executar o bloco
             condicao = self.visit(ctx.expression())
-            print(f"Avaliando condição do do-while: {condicao}")
 
             if not condicao:
                 break
 
     def visitForHeaderAssignment(self, ctx):
-            """
-            forHeaderAssignment : Identifier '=' expression
-            Trata a atribuição presente no cabeçalho do for (sem o ';' final).
-            """
             var_name = ctx.Identifier().getText()
             valor = self.visit(ctx.expression())
-            # Supondo que a variável já tenha sido declarada (na inicialização ou antes)
             self.tabela_simbolos.atualizar_variavel(var_name, valor)
-            print(f"for header assignment: {var_name} atualizado para {valor}")
 
     def visitForStatement(self, ctx):
-        """
-        forStatement : 'for' '(' (varDecl | forHeaderAssignment)? ';' expression? ';' forHeaderAssignment? ')' statement
-        Implementa o laço for como:
-            inicialização;
-            while (condição) {
-                statement;
-                atualização;
-            }
-        """
-        # 1. Inicialização: pode ser varDecl ou forHeaderAssignment (ou nenhum)
         if ctx.varDecl() is not None:
             self.visit(ctx.varDecl())
         elif ctx.forHeaderAssignment() is not None:
-            # Se houver apenas 1 forHeaderAssignment, ele será usado como inicialização
-            # (a atualização poderá ser nula)
-            # Obs.: Se houver duas ocorrências de forHeaderAssignment, a primeira é inicialização
-            # e a segunda é atualização.
-            # Para garantir que tratamos sempre como lista, fazemos:
             inits = ctx.forHeaderAssignment()
             if isinstance(inits, list):
                 self.visit(inits[0])
             else:
                 self.visit(inits)
         
-        # 2. Condição (opcional)
         if ctx.expression() is not None:
             condition = self.visit(ctx.expression())
         else:
-            condition = True  # Se não houver condição, assume-se que é sempre True
+            condition = True  
 
-        # 3. Obter a parte de atualização (se houver)
         update_assignment = None
         if ctx.forHeaderAssignment() is not None:
-            # Se houver duas ocorrências de forHeaderAssignment, a segunda é a atualização.
             headers = ctx.forHeaderAssignment()
             if isinstance(headers, list) and len(headers) >= 2:
                 update_assignment = headers[1]
-            # Caso haja apenas um e não tenhamos usado para inicialização, não haverá atualização.
         
-        # 4. Executa o laço enquanto a condição for verdadeira.
         while condition:
             try:
                 self.visit(ctx.statement())
             except BreakException:
                 break
 
-            # 5. Atualização: se a parte de atualização estiver presente, executa-a.
             if update_assignment is not None:
                 self.visit(update_assignment)
 
-            # 6. Reavalia a condição (se houver)
             if ctx.expression() is not None:
                 condition = self.visit(ctx.expression())
             else:
                 condition = True
 
     def visitInputOutputStatement(self, ctx):
-        """
-        Interpreta declarações de entrada e saída, incluindo:
-        - printf: formatação de string com argumentos.
-        - scanf: leitura de valores e conversão para variáveis.
-        - gets: lê uma linha da entrada padrão e armazena em uma variável do tipo string.
-        - puts: exibe uma string seguida de nova linha.
-        """
         comando = ctx.getChild(0).getText()
         
         if comando == "printf":
@@ -764,6 +586,9 @@ class Interpretador(CVisitor):
             formato = bytes(formato, "utf-8").decode("unicode_escape")
             
             argumentos = [self.visit(expr_ctx) for expr_ctx in ctx.expression()]
+            for i, arg in enumerate(argumentos):
+                if isinstance(arg, list) and len(arg) > 0 and all(isinstance(ch, str) and len(ch) == 1 for ch in arg):
+                    argumentos[i] = "".join(arg)
             try:
                 mensagem = formato % tuple(argumentos)
             except TypeError as e:
@@ -777,54 +602,107 @@ class Interpretador(CVisitor):
                 raise Exception("Erro: Nenhum literal de string encontrado no scanf.")
             
             formato = string_literal.getText().strip('"')
-            variaveis = ctx.Identifier()
-            if len(variaveis) != len(formato.split("%")) - 1:
+            num_especificadores = len(formato.split("%")) - 1
+            parametros = ctx.scanfParam()
+            if not isinstance(parametros, list):
+                parametros = [parametros]
+            if len(parametros) != num_especificadores:
                 raise Exception("Erro: Número de variáveis não corresponde ao formato.")
             
-            for i, var_ctx in enumerate(variaveis):
-                nome = var_ctx.getText()
-                var = self.tabela_simbolos.obter_variavel(nome, verificar_inicializacao=False)
-                tipo = var["tipo"]
-                
-                entrada = input(f"Digite um valor para {nome} ({tipo}): ")
-                try:
-                    if tipo == "int":
-                        valor = int(entrada)
-                    elif tipo in ["float", "double"]:
-                        valor = float(entrada)
-                    elif tipo == "char":
-                        valor = entrada[0]
-                    elif tipo == "string":
-                        valor = entrada
+            for param in parametros:
+                if param.getChildCount() == 1:
+                    nome = param.getChild(0).getText()
+                    var = self.tabela_simbolos.obter_variavel(nome, verificar_inicializacao=False)
+                    tipo = var["tipo"]
+                    if tipo.endswith("[]"):
+                        base_tipo = tipo[:-2]
+                        tamanho = len(var["valor"])
+                        if base_tipo == "char":
+                            entrada = input()
+                            if len(entrada) > tamanho:
+                                raise Exception(f"A string digitada excede o tamanho do array '{nome}'.")
+                            novo_valor = list(entrada) + ['\0'] * (tamanho - len(entrada))
+                            self.tabela_simbolos.atualizar_variavel(nome, novo_valor)
+                        else:
+                            entrada = input()
+                            tokens = entrada.split()
+                            if len(tokens) != tamanho:
+                                raise Exception(f"Erro: Esperados {tamanho} valores para o array '{nome}', mas foram recebidos {len(tokens)}.")
+                            novo_array = []
+                            for j, token in enumerate(tokens):
+                                try:
+                                    if base_tipo == "int":
+                                        valor_elem = int(token)
+                                    elif base_tipo in ["float", "double"]:
+                                        valor_elem = float(token)
+                                    else:
+                                        raise Exception(f"Tipo '{base_tipo}' não suportado para entrada.")
+                                except ValueError:
+                                    raise Exception(f"Erro: Valor '{token}' incompatível com o tipo '{base_tipo}'.")
+                                novo_array.append(valor_elem)
+                            self.tabela_simbolos.atualizar_variavel(nome, novo_array)
                     else:
-                        raise Exception(f"Tipo '{tipo}' não suportado para entrada.")
-                    self.tabela_simbolos.atualizar_variavel(nome, valor)
-                except ValueError:
-                    raise Exception(f"Erro: Valor '{entrada}' incompatível com o tipo '{tipo}'.")
+                        entrada = input()
+                        try:
+                            if tipo == "int":
+                                valor = int(entrada)
+                            elif tipo in ["float", "double"]:
+                                valor = float(entrada)
+                            elif tipo == "char":
+                                valor = entrada[0]
+                            else:
+                                raise Exception(f"Tipo '{tipo}' não suportado para entrada.")
+                            self.tabela_simbolos.atualizar_variavel(nome, valor)
+                        except ValueError:
+                            raise Exception(f"Erro: Valor '{entrada}' incompatível com o tipo '{tipo}'.")
+                else:
+                    nome = param.getChild(0).getText()
+                    var = self.tabela_simbolos.obter_variavel(nome, verificar_inicializacao=False)
+                    tipo = var["tipo"]
+                    if not tipo.endswith("[]"):
+                        raise Exception(f"Variável '{nome}' não é um array, mas foi usada com indexação no scanf.")
+                    index_expr = param.getChild(2)
+                    index_value = self.visit(index_expr)
+                    base_tipo = tipo[:-2]
+                    entrada = input()
+                    try:
+                        if base_tipo == "int":
+                            valor = int(entrada)
+                        elif base_tipo in ["float", "double"]:
+                            valor = float(entrada)
+                        elif base_tipo == "char":
+                            valor = entrada[0]
+                        else:
+                            raise Exception(f"Tipo '{base_tipo}' não suportado para entrada.")
+                        array_data = var["valor"]
+                        if index_value < 0 or index_value >= len(array_data):
+                            raise Exception(f"Índice {index_value} fora dos limites do array '{nome}'.")
+                        array_data[index_value] = valor
+                        self.tabela_simbolos.atualizar_variavel(nome, array_data)
+                    except ValueError:
+                        raise Exception(f"Erro: Valor '{entrada}' incompatível com o tipo '{base_tipo}'.")
         
         elif comando == "gets":
-            # gets: gets '(' Identifier ')'
-            # Use ctx.Identifier(0) para obter o identificador (pois ctx.Identifier() retorna uma lista)
-            nome = ctx.Identifier(0).getText()
+            ids = ctx.Identifier()
+            if isinstance(ids, list):
+                nome = ids[0].getText()
+            else:
+                nome = ids.getText()
             var = self.tabela_simbolos.obter_variavel(nome, verificar_inicializacao=False)
-            if var["tipo"] != "string":
-                raise Exception(f"Erro: Variável '{nome}' não é do tipo string para o comando gets.")
-            entrada = input()  # Lê uma linha completa
-            self.tabela_simbolos.atualizar_variavel(nome, entrada)
+            if not var["tipo"].endswith("[]") or not var["tipo"].startswith("char"):
+                raise Exception(f"Erro: Variável '{nome}' não é um array de char para o comando gets.")
+            entrada = input()
+            tamanho = len(var["valor"])
+            if len(entrada) > tamanho:
+                entrada = entrada[:tamanho]
+            else:
+                entrada = entrada + '\0' * (tamanho - len(entrada))
+            self.tabela_simbolos.atualizar_variavel(nome, list(entrada))
         
         elif comando == "puts":
-            # Trata o comando puts '(' (StringLiteral | expression) ')'
-            # Como a gramática agora aceita ambos, usamos:
             s = self.visit(ctx.expression(0))
+            if isinstance(s, list) and len(s) > 0 and all(isinstance(ch, str) and len(ch)==1 for ch in s):
+                s = "".join(s)
             if not isinstance(s, str):
                 raise Exception("Erro: Valor passado para puts não é uma string.")
             print(s)
-
-        
-
-
-
-
-
-    
-

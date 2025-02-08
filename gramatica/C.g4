@@ -50,11 +50,21 @@ block
     ;
 
 varDecl 
-    : type Identifier arraySize? ('=' expression)? ';'
+    : type Identifier arraySize? ('=' init)? ';'
     ;
 
 arraySize
-    : '[' Number ']'
+    : '[' (Number)? ']'
+    ;
+
+init 
+    : expression
+    | initializerList
+    ;
+
+// Lista de inicializadores: { expr, expr, ... }
+initializerList 
+    : '{' expression (',' expression)* '}'
     ;
 
 assignment 
@@ -110,9 +120,13 @@ functionCall
     : Identifier '(' argumentList? ')'
     ;
 
+scanfParam
+    : Identifier ('[' expression ']')?
+    ;
+
 inputOutputStatement 
     : 'printf' '(' StringLiteral (',' expression)* ')'
-    | 'scanf' '(' StringLiteral (',' '&' Identifier)* ')'
+    | 'scanf' '(' StringLiteral (',' '&' scanfParam)* ')'
     | 'gets' '(' Identifier ')'
     | 'puts' '(' (StringLiteral | expression) ')'
     ;
@@ -161,7 +175,6 @@ type
     | 'unsigned long long'
     | 'struct' Identifier
     | 'union' Identifier
-    | 'string'
     | 'void'
     ;
 

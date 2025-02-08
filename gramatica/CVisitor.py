@@ -59,6 +59,16 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CParser#init.
+    def visitInit(self, ctx:CParser.InitContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#initializerList.
+    def visitInitializerList(self, ctx:CParser.InitializerListContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CParser#assignment.
     def visitAssignment(self, ctx:CParser.AssignmentContext):
         return self.visitChildren(ctx)
@@ -121,6 +131,11 @@ class CVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CParser#functionCall.
     def visitFunctionCall(self, ctx:CParser.FunctionCallContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#scanfParam.
+    def visitScanfParam(self, ctx:CParser.ScanfParamContext):
         return self.visitChildren(ctx)
 
 

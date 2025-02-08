@@ -98,6 +98,24 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#init.
+    def enterInit(self, ctx:CParser.InitContext):
+        pass
+
+    # Exit a parse tree produced by CParser#init.
+    def exitInit(self, ctx:CParser.InitContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#initializerList.
+    def enterInitializerList(self, ctx:CParser.InitializerListContext):
+        pass
+
+    # Exit a parse tree produced by CParser#initializerList.
+    def exitInitializerList(self, ctx:CParser.InitializerListContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#assignment.
     def enterAssignment(self, ctx:CParser.AssignmentContext):
         pass
@@ -212,6 +230,15 @@ class CListener(ParseTreeListener):
 
     # Exit a parse tree produced by CParser#functionCall.
     def exitFunctionCall(self, ctx:CParser.FunctionCallContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#scanfParam.
+    def enterScanfParam(self, ctx:CParser.ScanfParamContext):
+        pass
+
+    # Exit a parse tree produced by CParser#scanfParam.
+    def exitScanfParam(self, ctx:CParser.ScanfParamContext):
         pass
 
 
