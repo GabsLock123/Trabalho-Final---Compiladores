@@ -44,12 +44,30 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#unionDef.
+    def enterUnionDef(self, ctx:CParser.UnionDefContext):
+        pass
+
+    # Exit a parse tree produced by CParser#unionDef.
+    def exitUnionDef(self, ctx:CParser.UnionDefContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#statement.
     def enterStatement(self, ctx:CParser.StatementContext):
         pass
 
     # Exit a parse tree produced by CParser#statement.
     def exitStatement(self, ctx:CParser.StatementContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#returnStatement.
+    def enterReturnStatement(self, ctx:CParser.ReturnStatementContext):
+        pass
+
+    # Exit a parse tree produced by CParser#returnStatement.
+    def exitReturnStatement(self, ctx:CParser.ReturnStatementContext):
         pass
 
 
@@ -68,6 +86,15 @@ class CListener(ParseTreeListener):
 
     # Exit a parse tree produced by CParser#varDecl.
     def exitVarDecl(self, ctx:CParser.VarDeclContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#arraySize.
+    def enterArraySize(self, ctx:CParser.ArraySizeContext):
+        pass
+
+    # Exit a parse tree produced by CParser#arraySize.
+    def exitArraySize(self, ctx:CParser.ArraySizeContext):
         pass
 
 
@@ -104,6 +131,15 @@ class CListener(ParseTreeListener):
 
     # Exit a parse tree produced by CParser#doWhileStatement.
     def exitDoWhileStatement(self, ctx:CParser.DoWhileStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#forHeaderAssignment.
+    def enterForHeaderAssignment(self, ctx:CParser.ForHeaderAssignmentContext):
+        pass
+
+    # Exit a parse tree produced by CParser#forHeaderAssignment.
+    def exitForHeaderAssignment(self, ctx:CParser.ForHeaderAssignmentContext):
         pass
 
 

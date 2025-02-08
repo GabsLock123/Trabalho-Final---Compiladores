@@ -1,10 +1,8 @@
 class TabelaSimbolos:
-    def __init__(self, parent=None):
+    def __init__(self):
         self.variaveis = {}
         self.macros = {}
         self.structs = {}
-        self.unions = {}
-        self.parent = parent
 
     def adicionar_macro(self, nome, valor):
         self.macros[nome] = valor
@@ -22,37 +20,32 @@ class TabelaSimbolos:
         }
 
     def obter_variavel(self, nome, verificar_inicializacao=True):
-        if nome in self.variaveis:
-            var = self.variaveis[nome]
-            if verificar_inicializacao and not var["inicializada"]:
-                raise Exception(f"Erro: Variável '{nome}' não foi inicializada antes do uso.")
-            return var
-        elif self.parent is not None:
-            return self.parent.obter_variavel(nome, verificar_inicializacao)
-        else:
+        """
+        Retorna os detalhes de uma variável.
+        - Se verificar_inicializacao=True, valida se a variável foi inicializada.
+        """
+        if nome not in self.variaveis:
             raise Exception(f"Variável '{nome}' não foi declarada.")
+        if verificar_inicializacao and not self.variaveis[nome]["inicializada"]:
+            raise Exception(f"Erro: Variável '{nome}' não foi inicializada antes do uso.")
+        return self.variaveis[nome]
 
     def atualizar_variavel(self, nome, valor):
-        if nome in self.variaveis:
-            self.variaveis[nome]["valor"] = valor
-            self.variaveis[nome]["inicializada"] = True
-        elif self.parent is not None:
-            self.parent.atualizar_variavel(nome, valor)
-        else:
+        if nome not in self.variaveis:
             raise Exception(f"Variável '{nome}' não foi declarada.")
+        self.variaveis[nome]["valor"] = valor
+        self.variaveis[nome]["inicializada"] = True  # Marca como inicializada
 
     def adicionar_struct(self, nome_struct, campos):
+        """
+        Armazena a definição de uma struct (nome e dicionário de {campo: tipoCampo}).
+        """
         if nome_struct in self.structs:
             raise Exception(f"A struct '{nome_struct}' já foi definida.")
         self.structs[nome_struct] = campos
 
     def obter_struct(self, nome_struct):
+        """
+        Retorna o dicionário de campos da struct ou None se não existir.
+        """
         return self.structs.get(nome_struct, None)
-    
-    def adicionar_union(self, nome_union, campos):
-        if nome_union in self.unions:
-            raise Exception(f"A union '{nome_union}' já foi definida.")
-        self.unions[nome_union] = campos
-
-    def obter_union(self, nome_union):
-        return self.unions.get(nome_union, None)

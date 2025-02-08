@@ -29,8 +29,18 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CParser#unionDef.
+    def visitUnionDef(self, ctx:CParser.UnionDefContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CParser#statement.
     def visitStatement(self, ctx:CParser.StatementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#returnStatement.
+    def visitReturnStatement(self, ctx:CParser.ReturnStatementContext):
         return self.visitChildren(ctx)
 
 
@@ -41,6 +51,11 @@ class CVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CParser#varDecl.
     def visitVarDecl(self, ctx:CParser.VarDeclContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#arraySize.
+    def visitArraySize(self, ctx:CParser.ArraySizeContext):
         return self.visitChildren(ctx)
 
 
@@ -61,6 +76,11 @@ class CVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CParser#doWhileStatement.
     def visitDoWhileStatement(self, ctx:CParser.DoWhileStatementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#forHeaderAssignment.
+    def visitForHeaderAssignment(self, ctx:CParser.ForHeaderAssignmentContext):
         return self.visitChildren(ctx)
 
 

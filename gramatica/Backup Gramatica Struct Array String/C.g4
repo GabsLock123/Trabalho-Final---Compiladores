@@ -1,7 +1,7 @@
 grammar C;
 
 // Regras principais
-program : (directive | functionDef | structDef | unionDef | statement)* EOF ;
+program : (directive | functionDef | structDef | statement)* EOF ;
 
 directive 
     : '#include' IncludeFile
@@ -21,10 +21,6 @@ structDef
     : 'struct' Identifier '{' varDecl* '}' ';'
     ;
 
-unionDef 
-    : 'union' Identifier '{' varDecl* '}' ';'
-    ;
-
 statement 
     : varDecl
     | assignment
@@ -41,10 +37,6 @@ statement
     | 'return' expression? ';'
     ;
 
-returnStatement 
-    : 'return' expression? ';'
-    ;
-
 block 
     : '{' statement* '}'
     ;
@@ -58,7 +50,8 @@ arraySize
     ;
 
 assignment 
-    : (Identifier ('.' Identifier)*) '=' expression ';'
+    : Identifier '=' expression ';'
+    | (Identifier ('.' Identifier)*) '=' expression ';'
     | Identifier '[' expression ']' '=' expression ';'
     ;
 
@@ -74,12 +67,8 @@ doWhileStatement
     : 'do' statement 'while' '(' expression ')' ';'
     ;
 
-forHeaderAssignment
-    : Identifier '=' expression
-    ;
-
 forStatement 
-    : 'for' '(' (varDecl | forHeaderAssignment)? ';' expression? ';' forHeaderAssignment? ')' statement
+    : 'for' '(' (varDecl | assignment)? ';' expression? ';' assignment? ')' statement
     ;
 
 switchStatement 
@@ -132,7 +121,6 @@ expression
     | CharLiteral
     | expression '.' Identifier
     | Identifier ('[' expression ']')*
-    | functionCall
     ;
 
 argumentList 
@@ -160,9 +148,7 @@ type
     | 'long long'
     | 'unsigned long long'
     | 'struct' Identifier
-    | 'union' Identifier
     | 'string'
-    | 'void'
     ;
 
 // Tokens
