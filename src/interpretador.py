@@ -5,7 +5,6 @@ from tabela_simbolos import TabelaSimbolos
 class BreakException(Exception):
     pass
 
-
 class ReturnException(Exception):
     def __init__(self, value):
         self.value = value
@@ -378,13 +377,18 @@ class Interpretador(CVisitor):
             else:
                 raise Exception("Atribuição inválida: acesso a campo apenas para structs e unions.")
 
-
-
     def visitExpression(self, ctx):
         child_count = ctx.getChildCount()
 
         if child_count == 1 and ctx.getChild(0).__class__.__name__ == "FunctionCallContext":
             return self.visit(ctx.getChild(0))
+    
+        if ctx.getChildCount() == 1 and ctx.Identifier():
+            ident = ctx.Identifier().getText()
+            macro_val = self.tabela_simbolos.obter_macro(ident)
+            if macro_val is not None:
+                return macro_val
+            return self.tabela_simbolos.obter_variavel(ident, verificar_inicializacao=True)["valor"]
 
         if child_count == 3 and ctx.getChild(1).getText() == '.':
             left_value = self.visit(ctx.getChild(0))
