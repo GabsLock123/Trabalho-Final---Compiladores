@@ -1,4 +1,4 @@
-# Interpretador C em Python com ANTLR4
+# InterCptor - Interpretador C em Python com ANTLR4
 
 Este projeto implementa um interpretador para uma linguagem semelhante a C, utilizando Python e ANTLR4. O interpretador suporta diversas funcionalidades da linguagem C, incluindo:
 
